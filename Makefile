@@ -1,10 +1,4 @@
-.PHONY: lite-up lite-down full-init full-up full-down full-status full-backup paperless-admin
-
-lite-up:
-	docker compose up -d --build
-
-lite-down:
-	docker compose down
+.PHONY: full-init full-up full-down full-status full-backup paperless-admin
 
 full-init:
 	bash scripts/full-init.sh
