@@ -1,0 +1,22 @@
+{
+    auto_https off
+}
+
+{$PAPERLESS_HOST:paperless.kb.local} {
+    reverse_proxy paperless-webserver:8000
+}
+
+{$BRIDGE_HOST:bridge.kb.local} {
+    reverse_proxy kb-bridge:8080
+}
+
+# RAGFlow and Dify are started from official compose stacks on the host.
+# If you want Caddy inside this compose to proxy them, expose their ports on localhost
+# and change the upstreams below accordingly.
+{$RAGFLOW_HOST:ragflow.kb.local} {
+    reverse_proxy host.docker.internal:80
+}
+
+{$DIFY_HOST:dify.kb.local} {
+    reverse_proxy host.docker.internal:8088
+}
