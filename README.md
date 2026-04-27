@@ -10,7 +10,7 @@ Caddy：统一入口 / 反向代理
 kb-bridge：Paperless → RAGFlow 同步服务
 ```
 
-本仓库不再包含单容器 Lite / Zeabur 体验版，只保留完全体部署相关内容。
+本仓库只保留 **PVE / VPS / 独立服务器** 的完全体部署路径。
 
 ---
 
@@ -57,7 +57,7 @@ Docker + Docker Compose v2
 
 ---
 
-## 三、PVE / VPS 快速启动
+## 三、快速启动
 
 ```bash
 git clone https://github.com/jaredshuai/enterprise-kb-zeabur-aio.git
@@ -85,36 +85,7 @@ docs/FULL_STACK.md
 
 ---
 
-## 四、Zeabur Template 入口
-
-仓库提供了一个实验性的 Zeabur 多服务模板：
-
-```text
-zeabur-template.yaml
-```
-
-部署方式：
-
-```text
-Zeabur 添加服务
-→ 模板
-→ 使用自定义模板 / 导入模板 YAML
-→ 复制 zeabur-template.yaml 内容
-→ 填写变量
-→ 部署
-```
-
-Zeabur 模板说明见：
-
-```text
-docs/ZEABUR_TEMPLATE.md
-```
-
-注意：Zeabur Template 是多服务拆分版，适合试验“Template 通吃”的可行性；如果 RAGFlow 或 Dify 某个服务因资源、上游环境变量变化、依赖未就绪等原因失败，仍建议用 PVE/VPS Full 模式，或直接使用 Zeabur 官方 RAGFlow / Dify 模板。
-
----
-
-## 五、资料流
+## 四、资料流
 
 ```text
 员工上传资料到 Paperless
@@ -136,9 +107,7 @@ RAGFlow 解析、切分、向量化
 
 ---
 
-## 六、默认端口
-
-PVE / VPS Full 模式默认：
+## 五、默认端口
 
 ```text
 Caddy HTTP：8080
@@ -158,11 +127,9 @@ RAGFlow:  http://服务器IP
 Dify:     http://服务器IP:8088
 ```
 
-Zeabur Template 模式下，以 Zeabur 为各服务分配的域名为准。
-
 ---
 
-## 七、RAGFlow Dataset 映射
+## 六、RAGFlow Dataset 映射
 
 kb-bridge 默认根据 Paperless 的 `document_type` 路由：
 
@@ -174,11 +141,11 @@ kb-bridge 默认根据 Paperless 的 `document_type` 路由：
 | 验收报告 / 交付文档 | RAGFLOW_DELIVERY_DATASET_ID |
 | 其他 | RAGFLOW_GENERAL_DATASET_ID |
 
-首次启动 RAGFlow 后，需要在页面里创建 Dataset，获取 Dataset ID 和 API Key，然后填入 `.env.full` 或 Zeabur Template 变量。
+首次启动 RAGFlow 后，需要在页面里创建 Dataset，获取 Dataset ID 和 API Key，然后填入 `.env.full`。
 
 ---
 
-## 八、运维命令
+## 七、运维命令
 
 ```bash
 make full-init       # 初始化工作区，拉取 RAGFlow / Dify 官方仓库
@@ -191,7 +158,7 @@ make paperless-admin # 创建 / 重置 Paperless 管理员
 
 ---
 
-## 九、安全提醒
+## 八、安全提醒
 
 1. 真实合同、标书、报价、客户资料涉及商业秘密。
 2. 接入外部大模型 / embedding API 前，需要评估公司合规要求。
