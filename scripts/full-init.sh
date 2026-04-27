@@ -51,6 +51,17 @@ fi
     cp docker/.env.example docker/.env
     echo "Created Dify docker/.env. Review ${DIFY_DIR}/docker/.env before exposing Dify."
   fi
+  if [ -f docker/.env ]; then
+    # Avoid fighting RAGFlow for host port 80. Dify compose commonly uses EXPOSE_NGINX_PORT.
+    if grep -q '^EXPOSE_NGINX_PORT=' docker/.env; then
+      sed -i "s/^EXPOSE_NGINX_PORT=.*/EXPOSE_NGINX_PORT=${DIFY_HTTP_PORT:-8088}/" docker/.env
+    else
+      printf '\nEXPOSE_NGINX_PORT=%s\n' "${DIFY_HTTP_PORT:-8088}" >> docker/.env
+    fi
+    if grep -q '^EXPOSE_NGINX_SSL_PORT=' docker/.env; then
+      sed -i 's/^EXPOSE_NGINX_SSL_PORT=.*/EXPOSE_NGINX_SSL_PORT=8444/' docker/.env
+    fi
+  fi
 )
 
 echo
