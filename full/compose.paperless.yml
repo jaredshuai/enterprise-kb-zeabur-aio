@@ -1,0 +1,74 @@
+services:
+  paperless-broker:
+    image: docker.io/library/redis:7
+    container_name: kb-paperless-redis
+    restart: unless-stopped
+    volumes:
+      - ${PAPERLESS_DATA:-./runtime/paperless}/redis:/data
+
+  paperless-db:
+    image: docker.io/library/postgres:16
+    container_name: kb-paperless-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: ${PAPERLESS_POSTGRES_PASSWORD:-paperless}
+    volumes:
+      - ${PAPERLESS_DATA:-./runtime/paperless}/postgres:/var/lib/postgresql/data
+
+  paperless-gotenberg:
+    image: docker.io/gotenberg/gotenberg:8
+    container_name: kb-paperless-gotenberg
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --chromium-disable-javascript=true
+      - --chromium-allow-list=file:///tmp/.*
+
+  paperless-tika:
+    image: docker.io/apache/tika:latest
+    container_name: kb-paperless-tika
+    restart: unless-stopped
+
+  paperless-webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: kb-paperless
+    restart: unless-stopped
+    depends_on:
+      - paperless-db
+      - paperless-broker
+      - paperless-gotenberg
+      - paperless-tika
+    ports:
+      - "${PAPERLESS_DIRECT_PORT:-18000}:8000"
+    environment:
+      PAPERLESS_REDIS: redis://paperless-broker:6379
+      PAPERLESS_DBHOST: paperless-db
+      PAPERLESS_DBNAME: paperless
+      PAPERLESS_DBUSER: paperless
+      PAPERLESS_DBPASS: ${PAPERLESS_POSTGRES_PASSWORD:-paperless}
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY:-change-me}
+      PAPERLESS_URL: ${PAPERLESS_URL:-http://paperless.kb.local}
+      PAPERLESS_TIME_ZONE: ${PAPERLESS_TIME_ZONE:-Asia/Shanghai}
+      PAPERLESS_OCR_LANGUAGE: ${PAPERLESS_OCR_LANGUAGE:-chi_sim+eng}
+      PAPERLESS_OCR_LANGUAGES: ${PAPERLESS_OCR_LANGUAGES:-chi-sim eng}
+      PAPERLESS_CONSUMER_RECURSIVE: ${PAPERLESS_CONSUMER_RECURSIVE:-true}
+      PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: ${PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS:-true}
+      PAPERLESS_FILENAME_FORMAT: ${PAPERLESS_FILENAME_FORMAT:-{{ created_year }}/{{ correspondent }}/{{ document_type }}/{{ title }}}
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
+      PAPERLESS_POST_CONSUME_SCRIPT: /usr/src/paperless/scripts/post-consume-to-outbox.sh
+    volumes:
+      - ${PAPERLESS_DATA:-./runtime/paperless}/data:/usr/src/paperless/data
+      - ${PAPERLESS_DATA:-./runtime/paperless}/media:/usr/src/paperless/media
+      - ${PAPERLESS_DATA:-./runtime/paperless}/export:/usr/src/paperless/export
+      - ${PAPERLESS_DATA:-./runtime/paperless}/consume:/usr/src/paperless/consume
+      - ${PAPERLESS_DATA:-./runtime/paperless}/outbox:/usr/src/paperless/outbox
+      - ./paperless:/usr/src/paperless/scripts:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
