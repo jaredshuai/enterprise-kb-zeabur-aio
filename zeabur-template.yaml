@@ -1,0 +1,258 @@
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: enterprise-kb-full-stack
+spec:
+  description: Enterprise knowledge base full stack with Paperless-ngx, RAGFlow, Dify, and kb-bridge.
+  tags:
+    - knowledge-base
+    - rag
+    - paperless
+    - ragflow
+    - dify
+  variables:
+    - key: PAPERLESS_SECRET_KEY
+      type: PASSWORD
+      name: Paperless secret key
+      default: change-me-paperless-secret
+    - key: PAPERLESS_ADMIN_USER
+      type: STRING
+      name: Paperless admin user
+      default: admin
+    - key: PAPERLESS_ADMIN_PASSWORD
+      type: PASSWORD
+      name: Paperless admin password
+      default: change-me-paperless
+    - key: PAPERLESS_POSTGRES_PASSWORD
+      type: PASSWORD
+      name: Paperless database password
+      default: change-me-paperless-db
+    - key: BRIDGE_API_KEY
+      type: PASSWORD
+      name: Bridge API key
+      default: change-me-bridge-key
+    - key: RAGFLOW_API_KEY
+      type: PASSWORD
+      name: RAGFlow API key
+      default: ""
+    - key: RAGFLOW_CONTRACT_DATASET_ID
+      type: STRING
+      name: RAGFlow contract dataset id
+      default: ""
+    - key: RAGFLOW_BID_DATASET_ID
+      type: STRING
+      name: RAGFlow bid dataset id
+      default: ""
+    - key: RAGFLOW_PROPOSAL_DATASET_ID
+      type: STRING
+      name: RAGFlow proposal dataset id
+      default: ""
+    - key: RAGFLOW_DELIVERY_DATASET_ID
+      type: STRING
+      name: RAGFlow delivery dataset id
+      default: ""
+    - key: RAGFLOW_GENERAL_DATASET_ID
+      type: STRING
+      name: RAGFlow general dataset id
+      default: ""
+  services:
+    - name: paperless-postgres
+      template: PREBUILT
+      spec:
+        source:
+          image: postgres:16
+        ports:
+          - id: postgres
+            port: 5432
+            type: TCP
+        env:
+          POSTGRES_DB:
+            default: paperless
+          POSTGRES_USER:
+            default: paperless
+          POSTGRES_PASSWORD:
+            default: ${PAPERLESS_POSTGRES_PASSWORD}
+        volumes:
+          - id: paperless-postgres-data
+            dir: /var/lib/postgresql/data
+
+    - name: paperless-redis
+      template: PREBUILT
+      spec:
+        source:
+          image: redis:7
+        ports:
+          - id: redis
+            port: 6379
+            type: TCP
+        volumes:
+          - id: paperless-redis-data
+            dir: /data
+
+    - name: paperless-gotenberg
+      template: PREBUILT
+      spec:
+        source:
+          image: gotenberg/gotenberg:8
+        command:
+          - gotenberg
+          - --chromium-disable-javascript=true
+          - --chromium-allow-list=file:///tmp/.*
+        ports:
+          - id: gotenberg
+            port: 3000
+            type: HTTP
+
+    - name: paperless-tika
+      template: PREBUILT
+      spec:
+        source:
+          image: apache/tika:latest
+        ports:
+          - id: tika
+            port: 9998
+            type: HTTP
+
+    - name: paperless
+      template: PREBUILT
+      spec:
+        source:
+          image: ghcr.io/paperless-ngx/paperless-ngx:latest
+        ports:
+          - id: web
+            port: 8000
+            type: HTTP
+        env:
+          PAPERLESS_REDIS:
+            default: redis://paperless-redis:6379
+          PAPERLESS_DBHOST:
+            default: paperless-postgres
+          PAPERLESS_DBNAME:
+            default: paperless
+          PAPERLESS_DBUSER:
+            default: paperless
+          PAPERLESS_DBPASS:
+            default: ${PAPERLESS_POSTGRES_PASSWORD}
+          PAPERLESS_SECRET_KEY:
+            default: ${PAPERLESS_SECRET_KEY}
+          PAPERLESS_TIME_ZONE:
+            default: Asia/Shanghai
+          PAPERLESS_OCR_LANGUAGE:
+            default: chi_sim+eng
+          PAPERLESS_OCR_LANGUAGES:
+            default: chi-sim eng
+          PAPERLESS_TIKA_ENABLED:
+            default: "1"
+          PAPERLESS_TIKA_GOTENBERG_ENDPOINT:
+            default: http://paperless-gotenberg:3000
+          PAPERLESS_TIKA_ENDPOINT:
+            default: http://paperless-tika:9998
+          PAPERLESS_CONSUMER_RECURSIVE:
+            default: "true"
+          PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS:
+            default: "true"
+        volumes:
+          - id: paperless-data
+            dir: /usr/src/paperless/data
+          - id: paperless-media
+            dir: /usr/src/paperless/media
+          - id: paperless-export
+            dir: /usr/src/paperless/export
+          - id: paperless-consume
+            dir: /usr/src/paperless/consume
+
+    - name: ragflow
+      template: PREBUILT
+      spec:
+        source:
+          image: infiniflow/ragflow:latest
+        ports:
+          - id: web
+            port: 80
+            type: HTTP
+        env:
+          TZ:
+            default: Asia/Shanghai
+        volumes:
+          - id: ragflow-data
+            dir: /ragflow
+
+    - name: dify-postgres
+      template: PREBUILT
+      spec:
+        source:
+          image: postgres:15-alpine
+        ports:
+          - id: postgres
+            port: 5432
+            type: TCP
+        env:
+          POSTGRES_DB:
+            default: dify
+          POSTGRES_USER:
+            default: postgres
+          POSTGRES_PASSWORD:
+            default: change-me-dify-db
+        volumes:
+          - id: dify-postgres-data
+            dir: /var/lib/postgresql/data
+
+    - name: dify-redis
+      template: PREBUILT
+      spec:
+        source:
+          image: redis:6-alpine
+        ports:
+          - id: redis
+            port: 6379
+            type: TCP
+        volumes:
+          - id: dify-redis-data
+            dir: /data
+
+    - name: kb-bridge
+      template: PREBUILT
+      spec:
+        source:
+          image: python:3.12-slim
+        command:
+          - sh
+          - -c
+          - pip install fastapi==0.115.6 'uvicorn[standard]'==0.34.0 httpx==0.28.1 pydantic==2.10.4 python-multipart==0.0.20 && python - <<'PY'
+import pathlib, urllib.request
+pathlib.Path('/app').mkdir(exist_ok=True)
+urllib.request.urlretrieve('https://raw.githubusercontent.com/jaredshuai/enterprise-kb-zeabur-aio/main/bridge/main.py','/app/main.py')
+PY
+            && uvicorn /app/main:app --host 0.0.0.0 --port 8080
+        ports:
+          - id: web
+            port: 8080
+            type: HTTP
+        env:
+          DATA_DIR:
+            default: /data
+          OUTBOX_DIR:
+            default: /paperless-outbox
+          BRIDGE_API_KEY:
+            default: ${BRIDGE_API_KEY}
+          BRIDGE_SYNC_ENABLED:
+            default: "true"
+          BRIDGE_REQUIRE_TAG:
+            default: 状态/可入RAG
+          RAGFLOW_BASE_URL:
+            default: http://ragflow
+          RAGFLOW_API_KEY:
+            default: ${RAGFLOW_API_KEY}
+          RAGFLOW_CONTRACT_DATASET_ID:
+            default: ${RAGFLOW_CONTRACT_DATASET_ID}
+          RAGFLOW_BID_DATASET_ID:
+            default: ${RAGFLOW_BID_DATASET_ID}
+          RAGFLOW_PROPOSAL_DATASET_ID:
+            default: ${RAGFLOW_PROPOSAL_DATASET_ID}
+          RAGFLOW_DELIVERY_DATASET_ID:
+            default: ${RAGFLOW_DELIVERY_DATASET_ID}
+          RAGFLOW_GENERAL_DATASET_ID:
+            default: ${RAGFLOW_GENERAL_DATASET_ID}
+        volumes:
+          - id: bridge-data
+            dir: /data
