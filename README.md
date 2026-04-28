@@ -60,8 +60,8 @@ Docker + Docker Compose v2
 ## 三、快速启动
 
 ```bash
-git clone https://github.com/jaredshuai/enterprise-kb-zeabur-aio.git
-cd enterprise-kb-zeabur-aio
+git clone https://github.com/jaredshuai/enterprise-doc-kb-stack.git
+cd enterprise-doc-kb-stack
 
 make full-init
 vim .env.full
